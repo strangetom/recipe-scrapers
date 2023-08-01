@@ -4,6 +4,7 @@
 
 
 from itertools import chain
+from typing import Dict, List, Optional
 
 import extruct
 
@@ -18,13 +19,15 @@ SYNTAXES = ["json-ld", "microdata"]
 
 
 class SchemaOrg:
+    format: Optional[str]
+
     @staticmethod
-    def _contains_schematype(item, schematype):
+    def _contains_schematype(item: Dict[str, str], schematype: str) -> bool:
         itemtype = item.get("@type", "")
         itemtypes = itemtype if isinstance(itemtype, list) else [itemtype]
         return schematype.lower() in "\n".join(itemtypes).lower()
 
-    def __init__(self, page_data, raw=False):
+    def __init__(self, page_data, raw: bool = False):
         if raw:
             self.format = "raw"
             self.data = page_data
@@ -73,19 +76,19 @@ class SchemaOrg:
                         self.data = main_entity
                         return
 
-    def language(self):
+    def language(self) -> Optional[str]:
         return self.data.get("inLanguage") or self.data.get("language")
 
-    def title(self):
+    def title(self) -> Optional[str]:
         return normalize_string(self.data.get("name"))
 
-    def category(self):
+    def category(self) -> Optional[str]:
         category = self.data.get("recipeCategory")
         if isinstance(category, list):
             return ",".join(category)
         return category
 
-    def author(self):
+    def author(self) -> Optional[str]:
         author = self.data.get("author") or self.data.get("Author")
         if (
             author
@@ -99,7 +102,9 @@ class SchemaOrg:
         if author:
             return author.strip()
 
-    def total_time(self):
+        return None
+
+    def total_time(self) -> int:
         if not (self.data.keys() & {"totalTime", "prepTime", "cookTime"}):
             raise SchemaOrgException("Cooking time information not found in SchemaOrg")
 
@@ -119,17 +124,17 @@ class SchemaOrg:
             total_time = sum(times)
         return total_time
 
-    def cook_time(self):
+    def cook_time(self) -> int:
         if not (self.data.keys() & {"cookTime"}):
             raise SchemaOrgException("Cooktime information not found in SchemaOrg")
         return get_minutes(self.data.get("cookTime"), return_zero_on_not_found=True)
 
-    def prep_time(self):
+    def prep_time(self) -> int:
         if not (self.data.keys() & {"prepTime"}):
             raise SchemaOrgException("Preptime information not found in SchemaOrg")
         return get_minutes(self.data.get("prepTime"), return_zero_on_not_found=True)
 
-    def yields(self):
+    def yields(self) -> str:
         if not (self.data.keys() & {"recipeYield", "yield"}):
             raise SchemaOrgException("Servings information not found in SchemaOrg")
         yield_data = self.data.get("recipeYield") or self.data.get("yield")
@@ -138,7 +143,7 @@ class SchemaOrg:
         recipe_yield = str(yield_data)
         return get_yields(recipe_yield)
 
-    def image(self):
+    def image(self) -> str:
         image = self.data.get("image")
 
         if image is None:
@@ -158,7 +163,7 @@ class SchemaOrg:
 
         return image
 
-    def ingredients(self):
+    def ingredients(self) -> List[str]:
         ingredients = (
             self.data.get("recipeIngredient") or self.data.get("ingredients") or []
         )
@@ -173,7 +178,7 @@ class SchemaOrg:
             normalize_string(ingredient) for ingredient in ingredients if ingredient
         ]
 
-    def nutrients(self):
+    def nutrients(self) -> Dict[str, str]:
         nutrients = self.data.get("nutrition", {})
 
         # Some recipes contain null or numbers which breaks normalize_string()
@@ -212,7 +217,7 @@ class SchemaOrg:
                 instructions_gist += self._extract_howto_instructions_text(item)
         return instructions_gist
 
-    def instructions(self):
+    def instructions(self) -> str:
         instructions = self.data.get("recipeInstructions") or ""
 
         if instructions and isinstance(instructions[0], list):
@@ -231,7 +236,7 @@ class SchemaOrg:
 
         return instructions
 
-    def ratings(self):
+    def ratings(self) -> float:
         ratings = self.data.get("aggregateRating")
         if ratings is None:
             raise SchemaOrgException("No ratings data in SchemaOrg.")
@@ -244,7 +249,7 @@ class SchemaOrg:
 
         return round(float(ratings), 2)
 
-    def cuisine(self):
+    def cuisine(self) -> str:
         cuisine = self.data.get("recipeCuisine")
         if cuisine is None:
             raise SchemaOrgException("No cuisine data in SchemaOrg.")
@@ -252,7 +257,7 @@ class SchemaOrg:
             return ",".join(cuisine)
         return cuisine
 
-    def description(self):
+    def description(self) -> str:
         description = self.data.get("description")
         if description is None:
             raise SchemaOrgException("No description data in SchemaOrg.")
